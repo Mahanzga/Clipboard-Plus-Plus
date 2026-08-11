@@ -1,11 +1,12 @@
 # IMPORTS
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QLineEdit, QListWidget, QListWidgetItem, 
-                             QVBoxLayout, QHBoxLayout, QMessageBox, QAbstractItemView)
+                             QVBoxLayout, QHBoxLayout, QMessageBox, QAbstractItemView, QLabel)
 from PyQt5.QtGui import QIcon, QColor
 import pyperclip as clipboard
 from PyQt5.QtCore import Qt, QTimer
 import json
+import datetime as dt
 
 class mainWindow(QWidget):
     def __init__(self):
@@ -52,19 +53,15 @@ class mainWindow(QWidget):
 
         self.setStyleSheet("""
 
-            QListWidget::item {
-                height: 100px;
-            }
-            QListWidget {
-                font-size: 30px;
-            }
             QPushButton#delete_button, #clear_button {
                 font-size: 20px;
             }
             QLineEdit {
-                font-size: 35px;
+                font-size: 30px;
+                font-family: Arial;
+                color: #2c3136;
                 border-radius: 20px;
-                padding: 20px 10px;
+                padding: 26px 15px;
             }
 
 
@@ -81,18 +78,25 @@ class mainWindow(QWidget):
         current = clipboard.paste()
 
         if current:
-            if not self.clipboard_log or current != self.clipboard_log[0]:
-                self.clipboard_log.insert(0, current)
+            if not self.clipboard_log or current != self.clipboard_log[0]["text"]:
+                timestamp = dt.datetime.now().strftime("%H:%M")
+                dictionary = {"text": current,
+                              "timestamp": timestamp, 
+                              "pinned": None}
+                self.clipboard_log.insert(0, dictionary)
 
-                item = QListWidgetItem(current)
+                item = QListWidgetItem()
+                widget = clipboardRow(dictionary["text"], dictionary["timestamp"])
+                item.setSizeHint(widget.sizeHint())
                 self.list.insertItem(0, item)
+                self.list.setItemWidget(item, widget)
 
         self.saveToFile()
         QTimer.singleShot(500, self.watch_clipboard)
 
     def saveToFile(self):
         with open(self.file_path, "w") as file:
-            json.dump(self.clipboard_log, file)
+            json.dump(self.clipboard_log, file, indent=4)
 
     def loadFromFile(self):
         self.clipboard_log = []
@@ -102,9 +106,12 @@ class mainWindow(QWidget):
         except FileNotFoundError:
             pass
 
-        for element in self.clipboard_log:
-            item = QListWidgetItem(element)
+        for dict in self.clipboard_log:
+            item = QListWidgetItem()
+            widget = clipboardRow(dict["text"], dict["timestamp"])
+            item.setSizeHint(widget.sizeHint())
             self.list.addItem(item)
+            self.list.setItemWidget(item, widget)
 
     def delete_item(self):
         selected_row = self.list.currentRow()
@@ -124,16 +131,22 @@ class mainWindow(QWidget):
     def search_item(self):
         if self.search_bar.text() == "":
             self.list.clear()
-            for element in self.clipboard_log:
-                item = QListWidgetItem(element)
+            for dict in self.clipboard_log:
+                item = QListWidgetItem()
+                widget = clipboardRow(dict["text"], dict["timestamp"])
+                item.setSizeHint(widget.sizeHint())
                 self.list.addItem(item)
+                self.list.setItemWidget(item, widget)
         else:
             self.list.clear()
             current = self.search_bar.text()
-            for items in self.clipboard_log:
-                if current in items:
-                    item = QListWidgetItem(items)
+            for dict in self.clipboard_log:
+                if current in dict["text"]:
+                    item = QListWidgetItem()
+                    widget = clipboardRow(dict["text"], dict["timestamp"])
+                    item.setSizeHint(widget.sizeHint())
                     self.list.addItem(item)
+                    self.list.setItemWidget(item, widget)
 
     def clear_all(self):
         confirm = QMessageBox.question(self, "Warning", "This will delete all items except for the last one! continue?", 
@@ -145,13 +158,48 @@ class mainWindow(QWidget):
             pass
 
     def on_double_click(self, item):
-        text = item.text()
+        widget = self.list.itemWidget(item)
+        text = widget.text
         clipboard.copy(text)
         item.setBackground(QColor(200, 255, 200))
-        QTimer.singleShot(500, lambda: self.on_double_click_do(item))
+        QTimer.singleShot(700, lambda: self.on_double_click_do(item))
 
     def on_double_click_do(self, item):
         item.setBackground(Qt.transparent)
+        self.list.clearSelection()
+        self.list.setCurrentRow(-1)
+
+
+class clipboardRow(QWidget):
+    def __init__(self, text, timestamp):
+        super().__init__()
+        self.text = text                        # to access in inside <on_double_click> method
+
+        layout = QHBoxLayout()
+
+        max_len = 30
+        display_text = text[:max_len] + ("  ..." if len(text) > max_len else "")
+        text_label = QLabel(display_text)
+        text_label.setObjectName("text_label")
+        timestamp_label = QLabel(timestamp)
+        timestamp_label.setObjectName("timestamp_label")
+        self.setStyleSheet("""
+
+            QLabel#text_label {
+                font-size: 24px;
+                font-family: Arial;
+            }
+            QLabel#timestamp_label {
+                color: #727a82;
+            }
+            
+        """)
+
+        layout.addWidget(text_label, 90)
+        layout.addWidget(timestamp_label, 10)
+
+        self.setLayout(layout)
+        self.setToolTip(f"{text}\n\nCopied at {timestamp}")
 
 
 
