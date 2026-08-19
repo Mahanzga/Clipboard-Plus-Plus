@@ -21,8 +21,8 @@ class mainWindow(QWidget):
         # ALL WIDGETS
         self.search_bar = QLineEdit()
         self.list = QListWidget()
-        # self.list.setSpacing(5)
-        self.list.setAlternatingRowColors(True)
+        self.list.setSpacing(5)
+        # self.list.setAlternatingRowColors(True)
         self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.list.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.list.verticalScrollBar().setSingleStep(15)
@@ -33,6 +33,7 @@ class mainWindow(QWidget):
 
         self.delete_button.setObjectName("delete_button")
         self.clear_button.setObjectName("clear_button")
+        self.setObjectName("mainWindow")
 
         self.initUI()
         self.loadFromFile()
@@ -54,15 +55,59 @@ class mainWindow(QWidget):
 
         self.setStyleSheet("""
 
+            QWidget#mainWindow {
+                background-color: #081c15;
+            }
+            
             QPushButton#delete_button, #clear_button {
                 font-size: 20px;
             }
+
             QLineEdit {
                 font-size: 30px;
                 font-family: Arial;
-                color: #2c3136;
-                border-radius: 20px;
+                color: #c2dfe3;
+                background-color: #1b4332;
+                border-radius: 24px;
                 padding: 26px 15px;
+            }
+
+            QLineEdit:focus {
+                background-color: #14382a;
+                border-color: #2d6a4f;
+                border-style: solid;
+                border-width: 3px;
+            }
+
+            QListWidget {
+                background-color: #042617;
+                border-style: dashed;
+                border-width: 2px;
+                border-radius: 28px;
+                border-color: #2D6A4F;
+                padding: 6px;
+            }
+
+            QScrollBar:vertical {
+            width: 0px;
+            }
+
+            QPushButton#delete_button, QPushButton#clear_button {
+                background-color: #1b4332;
+                color: #d8f3dc;
+                font-size: 20px;
+                border-radius: 15px;
+                padding: 15px;
+                font-weight: bold;
+                border: 2px solid #2d6a4f;
+            }
+            QPushButton#delete_button:hover, QPushButton#clear_button:hover {
+                background-color: #2d6a4f;
+                border: 2px solid #40916c;
+            }
+            QPushButton#delete_button:pressed, QPushButton#clear_button:pressed {
+                background-color: #081c15;
+                border: 2px solid #52b788;
             }
 
 
@@ -183,12 +228,13 @@ class mainWindow(QWidget):
             widget = self.list.itemWidget(current_item)
             current_text = widget.text
             if current_text == text:
-                self.list.item(i).setBackground(QColor(200, 255, 200))          # green
+                self.list.item(i).setBackground(QColor(74, 140, 99))          # green
                 QTimer.singleShot(700, lambda: self.reset_highlight(i))
                 return
 
     def reset_highlight(self, row):
         self.list.item(row).setBackground(Qt.transparent)
+        self.refresh()
 
 
     def toggle_pin(self, postion):
@@ -223,7 +269,7 @@ class mainWindow(QWidget):
             self.list.setItemWidget(item, widget)
 
             if dict["pinned"] :
-                item.setBackground(QColor(255, 201, 201))           # red
+                item.setBackground(QColor(66, 17, 17))           # red
             else:
                 item.setBackground(Qt.transparent)
 
@@ -248,6 +294,7 @@ class clipboardRow(QWidget):
             QLabel#text_label {
                 font-size: 24px;
                 font-family: Arial;
+                color: #d8f3dc;
             }
             QLabel#timestamp_label {
                 color: #727a82;
