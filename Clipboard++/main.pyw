@@ -1,7 +1,7 @@
 # IMPORTS
 import sys
 from PyQt5.QtWidgets import (QApplication, QWidget, QPushButton, QLineEdit, QListWidget, QListWidgetItem, 
-                             QVBoxLayout, QHBoxLayout, QMessageBox, QAbstractItemView, QLabel)
+                             QVBoxLayout, QHBoxLayout, QMessageBox, QAbstractItemView, QLabel, QSystemTrayIcon, QMenu)
 from PyQt5.QtGui import QIcon, QColor
 import pyperclip as clipboard
 from PyQt5.QtCore import Qt, QTimer
@@ -26,10 +26,25 @@ class mainWindow(QWidget):
         self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.list.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.list.verticalScrollBar().setSingleStep(15)
+        self.list.setFocusPolicy(Qt.StrongFocus)                # ensures the list can receive DEL key event
         self.delete_button = QPushButton("Delete ❌️")
         self.clear_button = QPushButton("Clear All ⚠️")
         self.clipboard_log = []
         self.last_copy = clipboard.paste()
+
+        # system tray icon
+        self.tray_icon = QSystemTrayIcon(QIcon(icon_path), self)
+        self.tray_icon.setToolTip("Clipboard++")
+        self.tray_icon.activated.connect(lambda: self.showNormal())             # using lambda because <activated> passes a reason argument (int) while showNormal doesn't accept arguments, so it crashes.
+
+        # system tray context menu
+        tray_menu = QMenu()
+        show_action = tray_menu.addAction("Show")
+        show_action.triggered.connect(self.showNormal)
+        close_action = tray_menu.addAction("Quit")
+        close_action.triggered.connect(lambda: sys.exit())
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.show()
 
         self.delete_button.setObjectName("delete_button")
         self.clear_button.setObjectName("clear_button")
@@ -123,7 +138,12 @@ class mainWindow(QWidget):
 
 
     def watch_clipboard(self):
-        current = clipboard.paste()
+        try:
+            current = clipboard.paste()
+        except Exception:
+            current = None
+            QTimer.singleShot(500, self.watch_clipboard)
+            return
 
         if current:
             if current != self.last_copy:
@@ -164,26 +184,29 @@ class mainWindow(QWidget):
 
     def delete_item(self):
         selected_row = self.list.currentRow()
+
+        if selected_row == -1:
+            QMessageBox.critical(self, "Error", "No item is selected!")
+            self.list.clearSelection()
+            self.list.setCurrentRow(-1)
+            return
+
         item = self.list.item(selected_row)
         widget = self.list.itemWidget(item)
         text = getattr(widget, "text", None)
 
+
         if text is None:
             return
 
-        if selected_row != -1:
-            self.list.takeItem(selected_row)
-            for dict in self.clipboard_log:
-                if dict.get("text") == text:
-                    index = self.clipboard_log.index(dict)
-                    del self.clipboard_log[index]
-                    break
-            self.list.clearSelection()
-            self.list.setCurrentRow(-1)
-        else:
-            QMessageBox.critical(self, "Error", "No item is selected.")
-            self.list.clearSelection()
-            self.list.setCurrentRow(-1)
+        self.list.takeItem(selected_row)
+        for dict in self.clipboard_log:
+            if dict.get("text") == text:
+                index = self.clipboard_log.index(dict)
+                del self.clipboard_log[index]
+                break
+        self.list.clearSelection()
+        self.list.setCurrentRow(-1)
 
     def search_item(self):
         if self.search_bar.text() == "":
@@ -250,8 +273,6 @@ class mainWindow(QWidget):
             if dict.get("text") == text:
                 dict["pinned"] = not dict["pinned"]
                 break
-        # row = self.list.row(item)
-        # self.clipboard_log[row]["pinned"] = not self.clipboard_log[row]["pinned"]
 
         self.search_bar.clear()
         self.list.clearSelection()
@@ -272,6 +293,17 @@ class mainWindow(QWidget):
                 item.setBackground(QColor(66, 17, 17))           # red
             else:
                 item.setBackground(Qt.transparent)
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+        self.tray_icon.showMessage("Clipboard++", "App minimized to tray", QSystemTrayIcon.Information, 2000)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Delete :
+            self.delete_item()
+        else:
+            super().keyPressEvent(event)
 
 
 
@@ -314,7 +346,7 @@ class clipboardRow(QWidget):
 def main():
     app = QApplication(sys.argv)
     window = mainWindow()
-    window.show()
+    # window.show()
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
