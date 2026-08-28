@@ -155,11 +155,11 @@ class mainWindow(QWidget):
                               "timestamp": timestamp, 
                               "pinned": False}
                 self.clipboard_log.insert(0, dictionary)
+                self.saveToFile()
 
 
                 self.refresh()
 
-        self.saveToFile()
         QTimer.singleShot(500, self.watch_clipboard)
 
     def saveToFile(self):
@@ -338,7 +338,9 @@ class clipboardRow(QWidget):
         layout.addWidget(timestamp_label, 10)
 
         self.setLayout(layout)
-        self.setToolTip(f"{text}\n\nCopied at {timestamp}")
+
+        tooltip_text = text[:2000] + ("  ..." if len(text) > 2000 else "")
+        self.setToolTip(f"{tooltip_text}\n\nCopied at {timestamp}")
 
 
 
