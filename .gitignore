@@ -1,3 +1,6 @@
-Moon/
-*.txt
-*.json
+# Personal clipboard history
+history.json
+
+# Python cache files
+__pycache__/
+*.py[cod]
